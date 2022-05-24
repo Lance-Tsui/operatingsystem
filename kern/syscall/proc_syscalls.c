@@ -10,6 +10,11 @@
 #include <addrspace.h>
 #include <copyinout.h>
 
+#include <mips/trapframe.h>
+#include <vfs.h>
+#include <kern/fcntl.h>
+
+
   /* this implementation of sys__exit does not do anything with the exit code */
   /* this needs to be fixed to get exit() and waitpid() working properly */
 
@@ -55,7 +60,11 @@ sys_getpid(pid_t *retval)
 {
   /* for now, this is just a stub that always returns a PID of 1 */
   /* you need to fix this to make it work properly */
-  *retval = 1;
+  #if OPT_A2
+    *retval = curproc->pid;
+  #else
+    *retval = 1;
+  #endif
   return(0);
 }
 
@@ -92,3 +101,11 @@ sys_waitpid(pid_t pid,
   return(0);
 }
 
+/*
+  return int;
+  an integer pointer to retval
+  a pointer to the entire trapframe structure that was passed to syscall
+*/
+int sys_fork(struct trapframe *tf, int* retval){
+  
+}

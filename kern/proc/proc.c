@@ -70,6 +70,10 @@ struct semaphore *no_proc_sem;
 #endif  // UW
 
 
+#if OPT_A2
+
+#endif
+
 
 /*
  * Create a proc structure.

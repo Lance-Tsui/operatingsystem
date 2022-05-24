@@ -39,6 +39,8 @@
 #include <spinlock.h>
 #include <thread.h> /* required for struct threadarray */
 
+#include "opt-A2.h"
+
 struct addrspace;
 struct vnode;
 #ifdef UW
@@ -49,6 +51,9 @@ struct semaphore;
  * Process structure.
  */
 struct proc {
+	#if OPT_A2
+	pid_t pid;	// add pid for proc
+	#endif
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
 	struct threadarray p_threads;	/* Threads in this process */
