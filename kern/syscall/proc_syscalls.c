@@ -10,9 +10,12 @@
 #include <addrspace.h>
 #include <copyinout.h>
 
+#include <limits.h>
+#include <clock.h>
 #include <mips/trapframe.h>
 #include <vfs.h>
 #include <kern/fcntl.h>
+#include "opt-A2.h"
 
 
   /* this implementation of sys__exit does not do anything with the exit code */
@@ -101,3 +104,33 @@ sys_waitpid(pid_t pid,
   return(0);
 }
 
+/*
+sys_fork
+*/
+int
+sys_fork(struct trapframe *tf, pid_t *retval){
+  /* 
+    Call proc_create_runprogram to create a new proc struct in sys_fork
+  */
+  struct proc* child = proc_create_runprogram(curproc->p_name);
+  KASSERT(child != NULL);
+  /* 
+    call as_copy to copy the address space of the current proces and assign it to the newly created proc struct
+     use curproc_getas() to get the address space of the current process
+  */
+  as_copy(curproc_getas(), &(child->p_addrspace));
+  
+  /*
+    Allocate a new trapframe using kmalloc and copy the trapframe of curproc into it
+  */
+
+  struct trapframe *trapframe_for_child = kmalloc(sizeof(struct trapframe));
+  memcpy(child->tf, tf, sizeof(struct trapframe));
+  thread_fork(child->p_name, child, &enter_forked_process, trapframe_for_child, 0);
+  *retval = child->p_pid;
+  
+  /*
+   returns 0 for child process
+   */
+  return(0);
+}
