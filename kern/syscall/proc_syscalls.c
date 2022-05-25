@@ -104,6 +104,16 @@ sys_waitpid(pid_t pid,
   return(0);
 }
 
+
+/*
+  executing from the entrypoint function in the kernel
+*/
+void thread_entrypoint(void *, unsigned long);
+void thread_entrypoint(void *ptr, unsigned long nouse){
+  (void)nouse;
+  enter_forked_process((struct trapframe *) ptr);
+}
+
 /*
 sys_fork
 */
@@ -125,10 +135,10 @@ sys_fork(struct trapframe *tf, pid_t *retval){
   */
 
   struct trapframe *trapframe_for_child = kmalloc(sizeof(struct trapframe));
-  memcpy(child->tf, tf, sizeof(struct trapframe));
-  thread_fork(child->p_name, child, &enter_forked_process, trapframe_for_child, 0);
+  *trapframe_for_child = *tf;
+  thread_fork(child->p_name, child, thread_entrypoint, trapframe_for_child, 0);
   *retval = child->p_pid;
-  
+  clocksleep(1);
   /*
    returns 0 for child process
    */

@@ -176,8 +176,24 @@ syscall(struct trapframe *tf)
  *
  * Thus, you can trash it and do things another way if you prefer.
  */
+
+/*
+	Add a fybctuib cakk ti nuos)ysernide with a properly initialized trapframe in enter_forked_process
+*/
 void
 enter_forked_process(struct trapframe *tf)
 {
+	#if OPT_A2
+	struct trapframe temp_tf = *tf;
+	// set register that holds system call's return values to 0
+	temp_tf.tf_v0 = 0;
+	temp_tf.tf_a3 = 0;
+	// increament the program counter by 4
+	temp_tf.tf_epc += 4;
+	// call mips_usermode
+	mips_usermode(&temp_tf);
+	#else
 	(void)tf;
+	#endif
+
 }
