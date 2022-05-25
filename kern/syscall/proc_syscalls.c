@@ -61,7 +61,7 @@ sys_getpid(pid_t *retval)
   /* for now, this is just a stub that always returns a PID of 1 */
   /* you need to fix this to make it work properly */
   #if OPT_A2
-    *retval = curproc->pid;
+    *retval = curproc->p_pid;
   #else
     *retval = 1;
   #endif
@@ -101,11 +101,3 @@ sys_waitpid(pid_t pid,
   return(0);
 }
 
-/*
-  return int;
-  an integer pointer to retval
-  a pointer to the entire trapframe structure that was passed to syscall
-*/
-int sys_fork(struct trapframe *tf, int* retval){
-  
-}

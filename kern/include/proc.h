@@ -52,7 +52,7 @@ struct semaphore;
  */
 struct proc {
 	#if OPT_A2
-	pid_t pid;	// add pid for proc
+	pid_t p_pid;	// add pid for proc
 	#endif
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
@@ -75,6 +75,8 @@ struct proc {
 
 	/* add more material here as needed */
 };
+
+
 
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
