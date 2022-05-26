@@ -109,8 +109,8 @@ sys_waitpid(pid_t pid,
   executing from the entrypoint function in the kernel
 */
 void thread_entrypoint(void *, unsigned long);
-void thread_entrypoint(void *ptr, unsigned long nouse){
-  (void)nouse;
+void thread_entrypoint(void *ptr, unsigned long abandon){
+  (void)abandon;
   enter_forked_process((struct trapframe *) ptr);
 }
 
