@@ -53,7 +53,10 @@ struct semaphore;
 struct proc {
 	#if OPT_A2
 	pid_t p_pid;	// add pid for proc
-	
+	struct array* p_children; // an array of processes to hold the children
+	struct proc *p_parent; // a pointer to parent process
+	int p_exitcode; // integer exitcode
+	int p_exitstatus; // integer exitstatus
 	#endif
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
