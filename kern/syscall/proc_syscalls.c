@@ -50,9 +50,9 @@ void sys__exit(int exitcode) {
     if(curproc->p_parent != NULL){
     spinlock_acquire(&curproc->p_parent->p_lock);
       for (unsigned int temp = 0; temp < array_num(curproc->p_parent->p_children); temp++) {
-          struct proc *single_procchild = array_get(curproc->p_parent->p_children, temp);
-          if (curproc->p_pid == single_procchild->p_pid) {
-            single_procchild->p_exitcode = exitcode;
+          struct proc *temp_child = array_get(curproc->p_parent->p_children, temp);
+          if (curproc->p_pid == temp_child->p_pid) {
+            temp_child->p_exitcode = exitcode;
             break;
           }
         }
@@ -106,8 +106,29 @@ sys_waitpid(pid_t pid,
   if (options != 0) {
     return(EINVAL);
   }
-  /* for now, just pretend the exitstatus is 0 */
-  exitstatus = 0;
+
+  #if OPT_A2
+    spinlock_acquire(&curproc->p_lock);
+    bool procexist = false;
+    for (unsigned int temp = 0; temp < array_num(curproc->p_children); temp++) {
+      struct proc * temp_child = array_get(curproc->p_children, temp);
+      if (pid == temp_child->p_pid) {
+        procexist = true;
+        struct proc *child = array_get(curproc->p_children, temp);
+        
+        exitstatus = _MKWAIT_EXIT(child->p_exitcode);
+      }
+    }
+    if (!procexist) {
+      spinlock_release(&curproc->p_lock);
+      *retval = -1;
+      return (ESRCH);
+    }
+  spinlock_release(&curproc->p_lock);
+  #else
+    /* for now, just pretend the exitstatus is 0 */
+    exitstatus = 0;
+  #endif
   result = copyout((void *)&exitstatus,status,sizeof(int));
   if (result) {
     return(result);
@@ -136,6 +157,10 @@ sys_fork(struct trapframe *tf, pid_t *retval){
   */
   struct proc* child = proc_create_runprogram(curproc->p_name);
   KASSERT(child != NULL);
+  child->p_parent = curproc;
+
+  child->p_exitcode = -1;
+  array_add(curproc->p_children,child, NULL);
   /* 
     call as_copy to copy the address space of the current proces and assign it to the newly created proc struct
      use curproc_getas() to get the address space of the current process

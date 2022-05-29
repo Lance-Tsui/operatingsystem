@@ -164,9 +164,9 @@ proc_destroy(struct proc *proc)
 	spinlock_acquire(&proc->p_lock);
 		int num_p_children = array_num(proc->p_children);
 		for(int temp = num_p_children - 1; temp >= 0; temp--){
-			struct proc *p_singlechild = array_get(proc->p_children, temp);
-			p_singlechild->p_parent = NULL;
-			kfree(p_singlechild);
+			struct proc *temp_child = array_get(proc->p_children, temp);
+			temp_child->p_parent = NULL;
+			kfree(temp_child);
 			array_remove(proc->p_children, temp);
 		}
 		array_destroy(proc->p_children);
