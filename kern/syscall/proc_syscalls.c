@@ -27,8 +27,10 @@ void sys__exit(int exitcode) {
   struct proc *p = curproc;
   /* for now, just include this to keep the compiler from complaining about
      an unused variable */
+  #if OPT_A2
+  #else
   (void)exitcode;
-
+  #endif
   DEBUG(DB_SYSCALL,"Syscall: _exit(%d)\n",exitcode);
 
   KASSERT(curproc->p_addrspace != NULL);
@@ -47,16 +49,18 @@ void sys__exit(int exitcode) {
   /* note: curproc cannot be used after this call */
   proc_remthread(curthread);
   #if OPT_A2
-    if(curproc->p_parent != NULL){
-    spinlock_acquire(&curproc->p_parent->p_lock);
-      for (unsigned int temp = 0; temp < array_num(curproc->p_parent->p_children); temp++) {
-          struct proc *temp_child = array_get(curproc->p_parent->p_children, temp);
-          if (curproc->p_pid == temp_child->p_pid) {
-            temp_child->p_exitcode = exitcode;
-            break;
-          }
-        }
-        spinlock_release(&curproc->p_parent->p_lock);
+    spinlock_acquire(&p->p_lock);
+    if(p->p_parent != NULL){
+      p->p_exitstatus = 1;  // setting up exit status to true
+      p->p_exitcode = exitcode;
+      
+      spinlock_release(&p->p_lock);
+
+    } else{
+        // release before proc_destroy
+        spinlock_release(&p->p_lock);
+        // call proc_destroy
+        proc_destroy(p);
     }
   #else
     /* if this is the last user process in the system, proc_destroy()
