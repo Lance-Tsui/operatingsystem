@@ -46,11 +46,23 @@ void sys__exit(int exitcode) {
   /* detach this thread from its process */
   /* note: curproc cannot be used after this call */
   proc_remthread(curthread);
-
-  /* if this is the last user process in the system, proc_destroy()
-     will wake up the kernel menu thread */
-  proc_destroy(p);
-  
+  #if OPT_A2
+    if(curproc->p_parent != NULL){
+    spinlock_acquire(&curproc->p_parent->p_lock);
+      for (unsigned int temp = 0; temp < array_num(curproc->p_parent->p_children); temp++) {
+          struct proc *single_procchild = array_get(curproc->p_parent->p_children, temp);
+          if (curproc->p_pid == single_procchild->p_pid) {
+            single_procchild->p_exitcode = exitcode;
+            break;
+          }
+        }
+        spinlock_release(&curproc->p_parent->p_lock);
+    }
+  #else
+    /* if this is the last user process in the system, proc_destroy()
+      will wake up the kernel menu thread */
+    proc_destroy(p);
+  #endif
   thread_exit();
   /* thread_exit() does not return, so we should never get here */
   panic("return from thread_exit in sys_exit\n");

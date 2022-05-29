@@ -54,7 +54,7 @@
 #include <limits.h>
 #include <kern/errno.h>
 #include <thread.h>
-
+#include "opt-A2.h"
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -94,6 +94,7 @@ static
 struct proc *
 proc_create(const char *name)
 {
+
 	struct proc *proc;
 
 	proc = kmalloc(sizeof(*proc));
@@ -114,6 +115,14 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+
+	#if OPT_A2
+		proc->p_children = array_create();
+		proc->p_parent = NULL;
+		proc->p_exitcode = 0; // initialize exit code
+		proc->p_exitstatus = 0; // initialize exit status
+		
+	#endif
 
 #ifdef UW
 	proc->console = NULL;
@@ -151,7 +160,23 @@ proc_destroy(struct proc *proc)
 		VOP_DECREF(proc->p_cwd);
 		proc->p_cwd = NULL;
 	}
-
+	#if OPT_A2
+	spinlock_acquire(&proc->p_lock);
+		int num_p_children = array_num(proc->p_children);
+		for(int temp = num_p_children - 1; temp >= 0; temp--){
+			struct proc *p_singlechild = array_get(proc->p_children, temp);
+			p_singlechild->p_parent = NULL;
+			kfree(p_singlechild);
+			array_remove(proc->p_children, temp);
+		}
+		array_destroy(proc->p_children);
+		
+		
+		proc->p_exitcode = 0;
+		proc->p_exitstatus = 1; // exited
+		spinlock_release(&proc->p_lock);
+		
+	#endif
 
 #ifndef UW  // in the UW version, space destruction occurs in sys_exit, not here
 	if (proc->p_addrspace) {
