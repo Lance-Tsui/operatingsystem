@@ -116,17 +116,19 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
-	#if OPT_A2
-		proc->p_children = array_create();
-		proc->p_parent = NULL;
-		proc->p_exitcode = 0; // initialize exit code
-		proc->p_exitstatus = 0; // initialize exit status
-		
-	#endif
 
 #ifdef UW
 	proc->console = NULL;
 #endif // UW
+
+
+#if OPT_A2
+	proc->p_children = array_create();
+	proc->p_parent = NULL;
+	proc->p_exitcode = 0; // initialize exit code
+	proc->p_exitstatus = 0; // initialize exit status
+	
+#endif
 
 	return proc;
 }
@@ -160,23 +162,7 @@ proc_destroy(struct proc *proc)
 		VOP_DECREF(proc->p_cwd);
 		proc->p_cwd = NULL;
 	}
-	#if OPT_A2
-	spinlock_acquire(&proc->p_lock);
-		int num_p_children = array_num(proc->p_children);
-		for(int temp = num_p_children - 1; temp >= 0; temp--){
-			struct proc *temp_child = array_get(proc->p_children, temp);
-			temp_child->p_parent = NULL;
-			kfree(temp_child);
-			array_remove(proc->p_children, temp);
-		}
-		array_destroy(proc->p_children);
-		
-		
-		proc->p_exitcode = 0;
-		proc->p_exitstatus = 1; // exited
-		spinlock_release(&proc->p_lock);
-		
-	#endif
+
 
 #ifndef UW  // in the UW version, space destruction occurs in sys_exit, not here
 	if (proc->p_addrspace) {
@@ -208,7 +194,31 @@ proc_destroy(struct proc *proc)
 	spinlock_cleanup(&proc->p_lock);
 
 	kfree(proc->p_name);
+
+	#if OPT_A2
+
+		int num_p_children = array_num(proc->p_children);
+		for(int temp = num_p_children - 1; temp >= 0; temp--){
+			struct proc *temp_child = array_get(proc->p_children, temp);
+			if(temp_child->p_exitstatus == 1){
+				temp_child->p_parent = NULL;
+				array_remove(proc->p_children, temp);
+				proc_destroy(temp_child);
+			} else{
+				spinlock_acquire(&temp_child->p_lock);
+				temp_child->p_parent = NULL;
+				spinlock_release(&temp_child->p_lock);
+				array_remove(proc->p_children, temp);
+			}
+		}
+		array_destroy(proc->p_children);
+
+			
+	#endif
+
 	kfree(proc);
+
+
 
 #ifdef UW
 	/* decrement the process count */
