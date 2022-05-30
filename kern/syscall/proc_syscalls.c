@@ -163,7 +163,6 @@ sys_fork(struct trapframe *tf, pid_t *retval){
   KASSERT(child != NULL);
   child->p_parent = curproc;
 
-  child->p_exitcode = -1;
   array_add(curproc->p_children,child, NULL);
   /* 
     call as_copy to copy the address space of the current proces and assign it to the newly created proc struct
