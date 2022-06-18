@@ -38,6 +38,7 @@
 #include <wchan.h>
 #include <thread.h>
 #include <current.h>
+#include <stdbool.h>
 #include <synch.h>
 
 ////////////////////////////////////////////////////////////
@@ -164,7 +165,10 @@ lock_create(const char *name)
         }
         
         // add stuff here as needed
-        
+        lock->lk_wchan = wchan_create(lock->lk_name);
+        spinlock_init(&lock->lk_spnlk);
+        lock->lk_held = false;
+        lock->lk_owner = NULL;
         return lock;
 }
 
