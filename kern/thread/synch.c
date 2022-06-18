@@ -38,7 +38,7 @@
 #include <wchan.h>
 #include <thread.h>
 #include <current.h>
-#include <stdbool.h>
+
 #include <synch.h>
 
 ////////////////////////////////////////////////////////////
@@ -178,7 +178,9 @@ lock_destroy(struct lock *lock)
         KASSERT(lock != NULL);
 
         // add stuff here as needed
-        
+        lock->lk_owner = NULL;
+        spinlock_cleanup(&lock->lk_spnlk);
+        wchan_destroy(lock->lk_wchan);
         kfree(lock->lk_name);
         kfree(lock);
 }
@@ -187,7 +189,18 @@ void
 lock_acquire(struct lock *lock)
 {
         // Write this
-
+        KASSERT(lock != NULL);
+        KASSERT(!lock_do_i_hold(lock));
+        spinlock_acquire(&lock->lk_spnlk);
+        while(lock->lk_held){
+                wchan_lock(lock->lk_wchan);
+                spinlock_release(&lock->lk_spnlk);
+                wchan_sleep(lock->lk_wchan);
+                spinlock_acquire(&lock->lk_spnlk);
+        }
+        lock->lk_held = true;
+        lock->lk_owner = curthread;
+        spinlock_release(&lock->lk_spnlk);
         (void)lock;  // suppress warning until code gets written
 }
 
@@ -195,7 +208,13 @@ void
 lock_release(struct lock *lock)
 {
         // Write this
-
+        KASSERT(lock != NULL);
+        KASSERT(lock_do_i_hold(lock));
+        spinlock_acquire(&lock->lk_spnlk);
+        lock->lk_held = false;
+        lock->lk_owner = NULL;
+        wchan_wakeone(lock->lk_wchan);
+        spinlock_release(&lock->lk_spnlk);
         (void)lock;  // suppress warning until code gets written
 }
 
@@ -203,10 +222,7 @@ bool
 lock_do_i_hold(struct lock *lock)
 {
         // Write this
-
-        (void)lock;  // suppress warning until code gets written
-
-        return true; // dummy until code gets written
+        return lock->lk_owner == curthread;
 }
 
 ////////////////////////////////////////////////////////////
@@ -232,6 +248,8 @@ cv_create(const char *name)
         
         // add stuff here as needed
         
+        cv->cv_wchan = wchan_create(cv->cv_name);
+
         return cv;
 }
 
@@ -241,7 +259,7 @@ cv_destroy(struct cv *cv)
         KASSERT(cv != NULL);
 
         // add stuff here as needed
-        
+        wchan_destroy(cv->cv_wchan);
         kfree(cv->cv_name);
         kfree(cv);
 }
@@ -250,22 +268,23 @@ void
 cv_wait(struct cv *cv, struct lock *lock)
 {
         // Write this
-        (void)cv;    // suppress warning until code gets written
-        (void)lock;  // suppress warning until code gets written
+        wchan_lock(cv->cv_wchan);
+        lock_release(lock);
+        wchan_sleep(cv->cv_wchan);
+        lock_acquire(lock);
+      
 }
 
 void
 cv_signal(struct cv *cv, struct lock *lock)
 {
-        // Write this
-	(void)cv;    // suppress warning until code gets written
+        wchan_wakeone(cv->cv_wchan);
 	(void)lock;  // suppress warning until code gets written
 }
 
 void
 cv_broadcast(struct cv *cv, struct lock *lock)
 {
-	// Write this
-	(void)cv;    // suppress warning until code gets written
+	wchan_wakeall(cv->cv_wchan);
 	(void)lock;  // suppress warning until code gets written
 }
