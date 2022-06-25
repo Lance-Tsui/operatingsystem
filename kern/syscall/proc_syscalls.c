@@ -15,7 +15,7 @@
 #include <mips/trapframe.h>
 #include <vfs.h>
 #include <kern/fcntl.h>
-#include "opt-A1.h"
+
 #include "opt-A2.h"
 
 
@@ -152,9 +152,7 @@ void thread_entrypoint(void *ptr, unsigned long abandon){
   enter_forked_process((struct trapframe *) ptr);
 }
 
-#if OPT_A1
 
-#else
 /*
 sys_fork
 */
@@ -188,5 +186,5 @@ sys_fork(struct trapframe *tf, pid_t *retval){
    */
   return(0);
 }
-#endif
+
 
