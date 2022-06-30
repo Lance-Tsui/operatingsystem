@@ -45,12 +45,90 @@
 #include <syscall.h>
 #include <test.h>
 
+#include <copyinout.h>
+#include "opt-A3.h"
+
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
  *
  * Calls vfs_open on progname and thus may destroy it.
  */
+
+userptr_t argcopy_out(int numargs, vaddr_t stackptr, char** args){
+	// return the virtual address of the copied string
+	vaddr_t copiedptr = stackptr;
+	char** tempargs = args;
+	size_t* stackargs = kmalloc((numargs + 1) * sizeof(vaddr_t));
+
+	// decrement the stack pointer to make room for the argument
+
+	for(int i = numargs - 1; i >= 0; i--){
+		size_t arglength = ROUNDUP(strlen(tempargs[i]) + 1, 4;
+		
+	}
+	stackargs[numargs] = (vaddr_t) NULL;
+	for(int i = numargs; i >= 0; i--){
+		
+	}
+	// make sure that the new address of stack pointer is 4 byte aligned
+
+
+	// use the copyoutstr function to copy the argument to the newly bump allocated in userspace
+	copyoutstr((void*)&stackargs[i], (userptr_t) copiedptr, sizeof(vaddr_t), numstackargs);
+
+	// the function should return the userspace address of the copied string
+	return (userptr_t) copiedptr;
+}
+
+
+#if OPT_A3
+int runprogram(char *progname, int numargs, char ** args){
+	struct addrspace *as;
+	struct vnode *v;
+	vaddr_t entrypoint, stackptr;
+	int result;
+
+	/* Open the file. */
+	result = vfs_open(progname, O_RDONLY, 0, &v);
+	if (result) {
+		return result;
+	}
+
+	/* We should be a new process. */
+	KASSERT(curproc_getas() == NULL);
+
+	/* Create a new address space. */
+	as = as_create();
+	if (as ==NULL) {
+		vfs_close(v);
+		return ENOMEM;
+	}
+
+	/* Switch to it and activate it. */
+	curproc_setas(as);
+	as_activate();
+
+	/* Load the executable. */
+	result = load_elf(v, &entrypoint);
+	if (result) {
+		/* p_addrspace will go away when curproc is destroyed */
+		vfs_close(v);
+		return result;
+	}
+
+	/* Done with the file now. */
+	vfs_close(v);
+
+	/* Define the user stack in the address space */
+	result = as_define_stack(as, &stackptr);
+	if (result) {
+		/* p_addrspace will go away when curproc is destroyed */
+		return result;
+	}
+
+}
+#else
 int
 runprogram(char *progname)
 {
@@ -105,4 +183,4 @@ runprogram(char *progname)
 	panic("enter_new_process returned\n");
 	return EINVAL;
 }
-
+#endif
