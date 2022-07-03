@@ -55,29 +55,31 @@
  * Calls vfs_open on progname and thus may destroy it.
  */
 
-userptr_t argcopy_out(int numargs, vaddr_t stackptr, char** args){
+userptr_t argcopy_out(int numargs, char** args, vaddr_t stackptr){
 	// return the virtual address of the copied string
-	vaddr_t copiedptr = stackptr;
 	char** tempargs = args;
-	size_t* stackargs = kmalloc((numargs + 1) * sizeof(vaddr_t));
-
+	vaddr_t copiedptr = stackptr;
+	
+	vaddr_t* stackargs = kmalloc((numargs + 1) * sizeof(vaddr_t));
+	
+	// end of an array with NULL
+	if(numargs > 0){
+		stackargs[numargs] = (vaddr_t) NULL;
+	}
 	// decrement the stack pointer to make room for the argument
 
 	for(int i = numargs - 1; i >= 0; i--){
-		size_t arglength = ROUNDUP(strlen(tempargs[i]) + 1, 4;
-		
+		// round down the stack pointer with a multiple of 4 before copying it out
+		size_t arglength = ROUNDUP(strlen(tempargs[i]) + 1, 4);
+		copiedptr -= arglength;
+		copyoutstr((void*)&stackargs[i], (userptr_t) copiedptr, arglength, NULL);
+		stackargs[i] = copiedptr;
 	}
-	stackargs[numargs] = (vaddr_t) NULL;
 	for(int i = numargs; i >= 0; i--){
-		
+		copiedptr -= sizeof(vaddr_t);
+		copyoutstr((void*)&stackargs[i], (userptr_t) copiedptr, sizeof(vaddr_t), NULL);
 	}
-	// make sure that the new address of stack pointer is 4 byte aligned
-
-
-	// use the copyoutstr function to copy the argument to the newly bump allocated in userspace
-	copyoutstr((void*)&stackargs[i], (userptr_t) copiedptr, sizeof(vaddr_t), numstackargs);
-
-	// the function should return the userspace address of the copied string
+	
 	return (userptr_t) copiedptr;
 }
 
@@ -126,7 +128,8 @@ int runprogram(char *progname, int numargs, char ** args){
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
-
+	useraddr_t copiedptr = argcopy_out(numargs, args, &stackptr);
+	enter_new_process(numargs, copiedptr, ROUNDUP(copiedptr, 8), entrypoint);
 }
 #else
 int
