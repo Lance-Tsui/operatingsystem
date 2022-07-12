@@ -48,44 +48,25 @@
 #include <copyinout.h>
 #include "opt-A3.h"
 
-/*
- * Load program "progname" and start running it in usermode.
- * Does not return except on error.
- *
- * Calls vfs_open on progname and thus may destroy it.
- */
 
-userptr_t argcopy_out(int numargs, char** args, vaddr_t stackptr){
-	// return the virtual address of the copied string
-	char** tempargs = args;
-	vaddr_t copiedptr = stackptr;
-	
-	vaddr_t* stackargs = kmalloc((numargs + 1) * sizeof(vaddr_t));
-	
-	// end of an array with NULL
-	if(numargs > 0){
-		stackargs[numargs] = (vaddr_t) NULL;
+vaddr_t* argcopy_out(vaddr_t, int, char**);
+vaddr_t* argcopy_out(vaddr_t stackptr, int argc, char ** args){
+	vaddr_t * argv_user = kmalloc((argc + 1) * sizeof(vaddr_t));
+	if(argc >= 0){
+		argv_user[argc] = (vaddr_t) NULL;
 	}
-	// decrement the stack pointer to make room for the argument
-
-	for(int i = numargs - 1; i >= 0; i--){
-		// round down the stack pointer with a multiple of 4 before copying it out
-		size_t arglength = ROUNDUP(strlen(tempargs[i]) + 1, 4);
-		copiedptr -= arglength;
-		copyoutstr((void*)&stackargs[i], (userptr_t) copiedptr, arglength, NULL);
-		stackargs[i] = copiedptr;
+	int numargs = 0;
+	for (int i = argc-1; i >= 0; i--) {
+	  numargs = strlen(args[i]) + 1;
+	  stackptr -= ROUNDUP(numargs, 4);
+	  copyoutstr(args[i], (userptr_t)stackptr, numargs, NULL);
+	  argv_user[i] = stackptr;
 	}
-	for(int i = numargs; i >= 0; i--){
-		copiedptr -= sizeof(vaddr_t);
-		copyoutstr((void*)&stackargs[i], (userptr_t) copiedptr, sizeof(vaddr_t), NULL);
-	}
-	
-	return (userptr_t) copiedptr;
+	return argv_user;
 }
 
-
 #if OPT_A3
-int runprogram(char *progname, int numargs, char ** args){
+int runprogram(char *progname, int argc, char ** args){
 	struct addrspace *as;
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
@@ -128,8 +109,26 @@ int runprogram(char *progname, int numargs, char ** args){
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
-	useraddr_t copiedptr = argcopy_out(numargs, args, &stackptr);
-	enter_new_process(numargs, copiedptr, ROUNDUP(copiedptr, 8), entrypoint);
+
+	
+	vaddr_t* argv_user = argcopy_out(stackptr, argc, args);
+	stackptr = stackptr - sizeof(vaddr_t);
+
+	
+    copyout(NULL, (userptr_t)stackptr, sizeof(vaddr_t));
+
+	for (int i = argc - 1; i >= 0; i--) {
+	  stackptr -= sizeof(vaddr_t);
+	  copyout(&argv_user[i], (userptr_t)stackptr, sizeof(vaddr_t));
+    }
+
+	/* Warp to user mode. */
+	enter_new_process(argc, (userptr_t)stackptr, stackptr, entrypoint);
+
+	/* enter_new_process does not return. */
+	panic("enter_new_process returned\n");
+	return EINVAL;
+
 }
 #else
 int
