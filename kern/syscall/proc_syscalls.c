@@ -17,6 +17,7 @@
 #include <kern/fcntl.h>
 
 #include "opt-A2.h"
+#include "opt-A3.h"
 
 
   /* this implementation of sys__exit does not do anything with the exit code */
@@ -187,4 +188,30 @@ sys_fork(struct trapframe *tf, pid_t *retval){
   return(0);
 }
 
+
+#if OPT_A3
+
+int sys_execv(char* progname, char** argv){
+  
+   struct addrspace *as;
+   struct addrspace *old;
+   struct vnode *v;
+   vaddr_t entrypoint, stackptr;
+   int result;
+   int argc = 0;
+   // add a case in the system call vector for sys_execv
+   // call as_destroy on the old address space after activating the new address space
+   old = curproc_getas();
+   as = as_create();
+   curproc_setas(as);
+   as_activate();
+
+
+
+   as_destroy(old);
+  
+}
+
+
+#endif
 

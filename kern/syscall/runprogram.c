@@ -49,8 +49,8 @@
 #include "opt-A3.h"
 
 
-vaddr_t* argcopy_out(vaddr_t, int, char**);
-vaddr_t* argcopy_out(vaddr_t stackptr, int argc, char ** args){
+vaddr_t* argcopy_out(vaddr_t*, int, char**);
+vaddr_t* argcopy_out(vaddr_t* stackptr, int argc, char ** args){
 	vaddr_t * argv_user = kmalloc((argc + 1) * sizeof(vaddr_t));
 	if(argc >= 0){
 		argv_user[argc] = (vaddr_t) NULL;
@@ -58,9 +58,9 @@ vaddr_t* argcopy_out(vaddr_t stackptr, int argc, char ** args){
 	int numargs = 0;
 	for (int i = argc-1; i >= 0; i--) {
 	  numargs = strlen(args[i]) + 1;
-	  stackptr -= ROUNDUP(numargs, 4);
-	  copyoutstr(args[i], (userptr_t)stackptr, numargs, NULL);
-	  argv_user[i] = stackptr;
+	  *stackptr -= ROUNDUP(numargs, 4);
+	  copyoutstr(args[i], (userptr_t)*stackptr, numargs, NULL);
+	  argv_user[i] = *stackptr;
 	}
 	return argv_user;
 }
@@ -110,8 +110,9 @@ int runprogram(char *progname, int argc, char ** args){
 		return result;
 	}
 
+	stackptr = ROUNDUP(stackptr, 8);
+	vaddr_t* argv_user = argcopy_out(&stackptr, argc, args);
 	
-	vaddr_t* argv_user = argcopy_out(stackptr, argc, args);
 	stackptr = stackptr - sizeof(vaddr_t);
 
 	
